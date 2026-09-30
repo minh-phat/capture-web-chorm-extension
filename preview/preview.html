@@ -24,7 +24,32 @@
       </div>
 
       <div class="topbar-center">
-        <div class="image-info-pill" id="image-info-pill">
+        <!-- Segmented Tab Switcher (Visible when multiple slices exist) -->
+        <nav class="view-tabs" id="view-tabs" style="display: none;">
+          <button class="view-tab-btn active" id="tab-gallery">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            <span>Từng phần đã chụp</span>
+            <span class="tab-badge" id="badge-slice-count">0</span>
+          </button>
+
+          <button class="view-tab-btn" id="tab-merged">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+            <span>Ảnh đã ghép</span>
+            <span class="tab-status-dot" id="tab-merged-status" title="Chưa ghép"></span>
+          </button>
+        </nav>
+
+        <!-- Stitched Image Meta Info Pill -->
+        <div class="image-info-pill" id="image-info-pill" style="display: none;">
           <span class="info-tag" id="info-dimensions">0 x 0 px</span>
           <span class="info-separator">•</span>
           <span class="info-tag" id="info-format">PNG</span>
@@ -34,59 +59,238 @@
       </div>
 
       <div class="topbar-right">
-        <button class="btn btn-secondary" id="btn-copy" title="Sao chép hình ảnh vào bộ nhớ tạm">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-          Sao chép
-        </button>
+        <!-- Actions when viewing Gallery (Slices) -->
+        <div class="topbar-actions-group" id="actions-gallery">
+          <button class="btn btn-secondary" id="btn-download-all" title="Tải tất cả các phần ảnh riêng lẻ về máy">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Tải tất cả (<span id="btn-download-count">0</span>)</span>
+          </button>
 
-        <button class="btn btn-primary" id="btn-download" title="Tải hình ảnh về máy tính">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Tải về máy
-        </button>
+          <button class="btn btn-primary" id="btn-stitch" title="Ghép các phần ảnh đã chọn thành 1 bức ảnh toàn bộ">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+            <span>Ghép thành 1 hình ảnh</span>
+          </button>
+        </div>
+
+        <!-- Actions when viewing Merged Image -->
+        <div class="topbar-actions-group" id="actions-merged" style="display: none;">
+          <button class="btn btn-secondary" id="btn-back-to-gallery" title="Quay lại danh sách các phần ảnh">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            <span>Xem danh sách ảnh</span>
+          </button>
+
+          <button class="btn btn-secondary" id="btn-copy" title="Sao chép hình ảnh vào bộ nhớ tạm">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <span>Sao chép</span>
+          </button>
+
+          <button class="btn btn-primary" id="btn-download" title="Tải hình ảnh về máy tính">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Tải về máy</span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Floating Zoom Toolbar -->
-    <div class="zoom-toolbar">
-      <button class="zoom-btn" id="btn-zoom-out" title="Thu nhỏ (-)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          <line x1="8" y1="11" x2="14" y2="11"/>
-        </svg>
-      </button>
-      <span class="zoom-text" id="zoom-level-text">100%</span>
-      <button class="zoom-btn" id="btn-zoom-in" title="Phóng to (+)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          <line x1="11" y1="8" x2="11" y2="14"/>
-          <line x1="8" y1="11" x2="14" y2="11"/>
-        </svg>
-      </button>
-      <div class="zoom-divider"></div>
-      <button class="zoom-btn text-btn" id="btn-zoom-fit" title="Vừa khung hình">Vừa màn hình</button>
-      <button class="zoom-btn text-btn" id="btn-zoom-100" title="Kích thước thực 100%">100%</button>
-    </div>
-
     <!-- Main Viewport Container -->
     <main class="preview-viewport" id="preview-viewport">
+      <!-- Loading State -->
       <div class="loading-state" id="loading-state">
         <div class="spinner"></div>
-        <div class="loading-text" id="loading-text">Đang tự động ghép ảnh toàn trang...</div>
+        <div class="loading-text" id="loading-text">Đang tải ảnh chụp...</div>
       </div>
 
-      <div class="image-wrapper" id="image-wrapper" style="display: none;">
-        <img id="preview-img" alt="Captured Website Screenshot" />
-      </div>
+      <!-- GALLERY VIEW: Shows all individual captured slices -->
+      <section class="gallery-view" id="gallery-view" style="display: none;">
+        <!-- Gallery Subheader Bar -->
+        <div class="gallery-toolbar">
+          <div class="gallery-toolbar-left">
+            <div class="gallery-stat-pill">
+              <span class="gallery-stat-dot"></span>
+              <span id="gallery-count-text">Đã chụp 0 phần ảnh</span>
+            </div>
+
+            <label class="gallery-select-all" for="check-select-all">
+              <input type="checkbox" id="check-select-all" checked>
+              <span>Chọn tất cả (<span id="selected-count-badge">0</span>/<span id="total-count-badge">0</span>)</span>
+            </label>
+          </div>
+
+          <div class="gallery-toolbar-right">
+            <div class="layout-switch">
+              <button class="layout-btn active" id="btn-layout-grid" title="Xem dạng lưới ô">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                <span>Lưới</span>
+              </button>
+              <button class="layout-btn" id="btn-layout-strip" title="Xem cuộn dọc như đọc truyện tranh">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="4" y="2" width="16" height="20" rx="2"/>
+                  <line x1="8" y1="6" x2="16" y2="6"/>
+                  <line x1="8" y1="12" x2="16" y2="12"/>
+                  <line x1="8" y1="18" x2="16" y2="18"/>
+                </svg>
+                <span>Cuộn dọc</span>
+              </button>
+            </div>
+
+            <button class="btn btn-primary btn-sm" id="btn-quick-stitch" title="Ghép các ảnh đã chọn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                <polyline points="2 17 12 22 22 17"/>
+                <polyline points="2 12 12 17 22 12"/>
+              </svg>
+              <span>Ghép ảnh đã chọn</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Cards Grid View -->
+        <div class="gallery-grid" id="gallery-grid">
+          <!-- Dynamically populated slice cards -->
+        </div>
+
+        <!-- Continuous Strip / Webtoon Reading View -->
+        <div class="gallery-strip" id="gallery-strip" style="display: none;">
+          <!-- Dynamically populated continuous strip items -->
+        </div>
+      </section>
+
+      <!-- MERGED VIEW: Shows stitched full-page image -->
+      <section class="merged-view" id="merged-view" style="display: none;">
+        <!-- Floating Zoom Toolbar -->
+        <div class="zoom-toolbar" id="zoom-toolbar">
+          <button class="zoom-btn" id="btn-zoom-out" title="Thu nhỏ (-)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <span class="zoom-text" id="zoom-level-text">100%</span>
+          <button class="zoom-btn" id="btn-zoom-in" title="Phóng to (+)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <div class="zoom-divider"></div>
+          <button class="zoom-btn text-btn" id="btn-zoom-fit" title="Vừa khung hình">Vừa màn hình</button>
+          <button class="zoom-btn text-btn" id="btn-zoom-100" title="Kích thước thực 100%">100%</button>
+        </div>
+
+        <!-- Stitched Image Wrapper -->
+        <div class="image-wrapper" id="image-wrapper" style="display: none;">
+          <img id="preview-img" alt="Captured Website Screenshot" />
+        </div>
+
+        <!-- Unstitched Prompt (When user opens Merged tab before stitching) -->
+        <div class="unstitched-prompt" id="unstitched-prompt" style="display: none;">
+          <div class="prompt-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+          </div>
+          <h2 class="prompt-title">Chưa ghép các phần ảnh</h2>
+          <p class="prompt-desc">
+            Bạn đã chụp thành công <span id="prompt-slice-count">0</span> phần ảnh của trang web.<br>
+            Nhấn nút bên dưới để tiến hành ghép tất cả thành một hình ảnh hoàn chỉnh.
+          </p>
+          <button class="btn btn-primary btn-large" id="btn-prompt-stitch">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+            <span>Ghép toàn bộ ảnh ngay</span>
+          </button>
+        </div>
+      </section>
     </main>
+
+    <!-- Lightbox Modal for inspecting individual slice -->
+    <div class="lightbox-modal" id="lightbox-modal" style="display: none;">
+      <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+      <div class="lightbox-dialog">
+        <header class="lightbox-header">
+          <div class="lightbox-meta">
+            <span class="lightbox-title" id="lightbox-title">Phần ảnh #1</span>
+            <span class="lightbox-divider">•</span>
+            <span class="lightbox-info" id="lightbox-meta-info">1920 × 1080 px</span>
+          </div>
+          <div class="lightbox-actions">
+            <button class="btn-icon" id="btn-lightbox-copy" title="Sao chép ảnh này">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+            <button class="btn-icon" id="btn-lightbox-download" title="Tải ảnh này về máy">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+            <button class="btn-icon close-btn" id="btn-lightbox-close" title="Đóng (Esc)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="lightbox-body">
+          <button class="lightbox-nav-btn prev-btn" id="btn-lightbox-prev" title="Ảnh trước (←)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          <div class="lightbox-img-wrapper" id="lightbox-img-wrapper">
+            <img id="lightbox-img" alt="Slice preview" />
+          </div>
+          <button class="lightbox-nav-btn next-btn" id="btn-lightbox-next" title="Ảnh tiếp theo (→)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+
+        <footer class="lightbox-footer">
+          <span>Dùng phím mũi tên ← → để chuyển ảnh • Phím Esc để đóng</span>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
   </div>
 
   <script src="preview.js"></script>

@@ -6,11 +6,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnOpenRecent = document.getElementById('btn-open-recent');
   const speedBtns = document.querySelectorAll('.speed-btn');
 
-  let selectedDelay = 400;
+  const checkShowGallery = document.getElementById('check-show-gallery');
 
-  // Load saved speed setting if present
+  let selectedDelay = 400;
+  let showGalleryFirst = true;
+
+  // Load saved settings if present
   try {
-    const data = await chrome.storage.local.get('scrollDelay');
+    const data = await chrome.storage.local.get(['scrollDelay', 'showGalleryFirst']);
     if (data && data.scrollDelay) {
       selectedDelay = data.scrollDelay;
       speedBtns.forEach(btn => {
@@ -21,7 +24,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
     }
+
+    if (data && data.showGalleryFirst !== undefined) {
+      showGalleryFirst = !!data.showGalleryFirst;
+      if (checkShowGallery) {
+        checkShowGallery.checked = showGalleryFirst;
+      }
+    } else {
+      // Default is true as requested by user
+      chrome.storage.local.set({ showGalleryFirst: true });
+    }
   } catch (e) {}
+
+  // Toggle show gallery setting
+  if (checkShowGallery) {
+    checkShowGallery.addEventListener('change', () => {
+      showGalleryFirst = checkShowGallery.checked;
+      chrome.storage.local.set({ showGalleryFirst: showGalleryFirst });
+    });
+  }
 
   // Speed selection toggle
   speedBtns.forEach(btn => {

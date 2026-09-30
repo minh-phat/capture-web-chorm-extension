@@ -41,6 +41,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ error: chrome.runtime.lastError ? chrome.runtime.lastError.message : 'Capture failed' });
       } else {
         const sliceData = {
+          index: message.data.index,
           dataUrl: dataUrl,
           y: message.data.y,
           viewportWidth: message.data.viewportWidth,
