@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Capture</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <h1>Web Capture</h1>
+          <span class="badge">PRO</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Actions -->
+    <main class="content">
+      <div class="action-card primary" id="btn-full-page">
+        <div class="card-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="18" rx="2"/>
+            <line x1="2" y1="9" x2="22" y2="9"/>
+            <polyline points="8 15 12 19 16 15"/>
+            <line x1="12" y1="12" x2="12" y2="19"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Chụp toàn bộ trang (Full Page)</div>
+          <div class="card-desc">Tự động cuộn &amp; ghép toàn trang dài (Đọc truyện, báo chí)</div>
+        </div>
+      </div>
+
+      <div class="action-card secondary" id="btn-visible-area">
+        <div class="card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="card-title">Chụp màn hình hiện tại</div>
+          <div class="card-desc">Chụp nhanh khung hình đang hiển thị</div>
+        </div>
+      </div>
+
+      <!-- Settings Section -->
+      <div class="settings-section">
+        <div class="settings-title">Tốc độ cuộn &amp; chờ ảnh (Lazy load)</div>
+        <div class="speed-selector">
+          <button class="speed-btn" data-delay="200">Nhanh (200ms)</button>
+          <button class="speed-btn active" data-delay="400">Chuẩn (400ms)</button>
+          <button class="speed-btn" data-delay="800">Chậm (800ms)</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <button class="recent-btn" id="btn-open-recent">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Xem lại ảnh vừa chụp gần đây
+      </button>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

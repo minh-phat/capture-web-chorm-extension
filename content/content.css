@@ -1,0 +1,111 @@
+/* Content script styling for progress overlay during full page capture */
+
+#web-capture-progress-hud {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 2147483647 !important;
+  background: rgba(15, 23, 42, 0.92) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 14px !important;
+  padding: 16px 20px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  color: #f8fafc !important;
+  min-width: 280px !important;
+  max-width: 340px !important;
+  box-sizing: border-box !important;
+  animation: webCaptureHudSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  pointer-events: auto !important;
+}
+
+@keyframes webCaptureHudSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.web-capture-hud-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 10px !important;
+}
+
+.web-capture-hud-title {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #38bdf8 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.web-capture-hud-spinner {
+  width: 14px !important;
+  height: 14px !important;
+  border: 2px solid rgba(56, 189, 248, 0.3) !important;
+  border-top-color: #38bdf8 !important;
+  border-radius: 50% !important;
+  animation: webCaptureSpin 0.8s linear infinite !important;
+  display: inline-block !important;
+}
+
+@keyframes webCaptureSpin {
+  to { transform: rotate(360deg); }
+}
+
+.web-capture-hud-percent {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #e2e8f0 !important;
+}
+
+.web-capture-progress-bar-bg {
+  width: 100% !important;
+  height: 8px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  margin-bottom: 10px !important;
+}
+
+.web-capture-progress-bar-fill {
+  height: 100% !important;
+  width: 0%;
+  background: linear-gradient(90deg, #38bdf8, #818cf8) !important;
+  border-radius: 4px !important;
+  transition: width 0.2s ease !important;
+}
+
+.web-capture-hud-footer {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  font-size: 12px !important;
+  color: #94a3b8 !important;
+}
+
+.web-capture-cancel-btn {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.web-capture-cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.4) !important;
+  color: #ffffff !important;
+}
