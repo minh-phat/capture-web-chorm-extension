@@ -47,7 +47,21 @@
     cancelRequested = false;
     originalScrollPos = { x: window.scrollX, y: window.scrollY };
 
+    // Wait slightly to ensure extension popup window is completely closed
+    await sleep(250);
+
     showHudOverlay();
+
+    // Temporarily hide scrollbar so it doesn't appear in the captured images
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    // Disable smooth scroll temporarily for precise positioning
+    const originalScrollBehavior = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = 'auto';
+    document.body.style.scrollBehavior = 'auto';
 
     try {
       // 0. Notify background worker to reset slice storage
@@ -75,11 +89,6 @@
       const totalSteps = Math.ceil(totalHeight / viewportHeight);
       let stepIndex = 0;
 
-      // Disable smooth scroll temporarily for precise positioning
-      const originalScrollBehavior = document.documentElement.style.scrollBehavior;
-      document.documentElement.style.scrollBehavior = 'auto';
-      document.body.style.scrollBehavior = 'auto';
-
       while (currentY < totalHeight && !cancelRequested) {
         // Scroll to position
         window.scrollTo(0, currentY);
@@ -94,10 +103,14 @@
         const actualScrollY = window.scrollY;
         const sliceHeight = Math.min(viewportHeight, totalHeight - actualScrollY);
 
-        // Update progress HUD
         stepIndex++;
         const percent = Math.min(100, Math.round((stepIndex / totalSteps) * 100));
-        updateHudProgress(percent, stepIndex, totalSteps);
+
+        // CRITICAL FIX: Hide the extension HUD completely before capturing screenshot
+        // so that the capture tool UI never appears inside the captured image!
+        setHudVisibility(false);
+        // Wait for browser repaint to ensure HUD is removed from viewport
+        await new Promise(r => requestAnimationFrame(() => setTimeout(r, 40)));
 
         // Capture current viewport slice & store directly into background storage
         const storeResult = await requestSliceStore({
@@ -107,6 +120,10 @@
           viewportHeight: viewportHeight,
           sliceHeight: sliceHeight
         });
+
+        // Restore HUD visibility and update progress bar for user feedback
+        setHudVisibility(true);
+        updateHudProgress(percent, stepIndex, totalSteps);
 
         if (!storeResult || storeResult.error) {
           throw new Error("Không thể chụp ảnh từ trình duyệt: " + (storeResult?.error || 'Lỗi chụp ảnh'));
@@ -119,9 +136,11 @@
         currentY += viewportHeight;
       }
 
-      // Restore scroll behavior
+      // Restore scroll behavior & overflow
       document.documentElement.style.scrollBehavior = originalScrollBehavior;
       document.body.style.scrollBehavior = originalScrollBehavior;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
 
       // Scroll back to original position
       window.scrollTo(originalScrollPos.x, originalScrollPos.y);
@@ -150,11 +169,19 @@
 
     } catch (err) {
       console.error('Lỗi khi chụp trang web:', err);
+      document.documentElement.style.scrollBehavior = originalScrollBehavior;
+      document.body.style.scrollBehavior = originalScrollBehavior;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
       window.scrollTo(originalScrollPos.x, originalScrollPos.y);
       restoreStickyElements();
       removeHudOverlay();
       alert('Đã xảy ra lỗi khi chụp hình toàn bộ trang web: ' + (err.message || err));
     } finally {
+      document.documentElement.style.scrollBehavior = originalScrollBehavior;
+      document.body.style.scrollBehavior = originalScrollBehavior;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
       isCapturing = false;
     }
   }
@@ -162,6 +189,10 @@
   // Single visible capture runner
   async function runVisibleCapture() {
     try {
+      removeHudOverlay();
+      // Wait for extension popup to completely close so it won't be captured
+      await sleep(250);
+
       const devicePixelRatio = window.devicePixelRatio || 1;
       const sliceDataUrl = await requestSliceCapture();
 
@@ -337,6 +368,20 @@
     if (percentEl) percentEl.textContent = `${percent}%`;
     if (barEl) barEl.style.width = `${percent}%`;
     if (stepTextEl) stepTextEl.textContent = `Bước ${currentStep} / ${totalSteps}`;
+  }
+
+  function setHudVisibility(visible) {
+    const hud = document.getElementById('web-capture-progress-hud');
+    if (!hud) return;
+    if (visible) {
+      hud.style.setProperty('display', 'block', 'important');
+      hud.style.setProperty('opacity', '1', 'important');
+      hud.style.setProperty('visibility', 'visible', 'important');
+    } else {
+      hud.style.setProperty('display', 'none', 'important');
+      hud.style.setProperty('opacity', '0', 'important');
+      hud.style.setProperty('visibility', 'hidden', 'important');
+    }
   }
 
   function removeHudOverlay() {

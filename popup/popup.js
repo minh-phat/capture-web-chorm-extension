@@ -76,12 +76,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       chrome.tabs.sendMessage(tab.id, {
         action: 'START_FULL_PAGE_CAPTURE',
         scrollDelay: selectedDelay
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error(chrome.runtime.lastError);
-        }
-        window.close(); // Close popup to let user see progress HUD on screen
       });
+      // Close popup immediately so it won't appear in the captured screenshot
+      window.close();
     } catch (err) {
       console.error(err);
       alert('Không thể kết nối với trang web: ' + err.message);
@@ -101,9 +98,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       await ensureContentScriptInjected(tab.id);
 
-      chrome.tabs.sendMessage(tab.id, { action: 'START_VISIBLE_CAPTURE' }, () => {
-        window.close();
-      });
+      chrome.tabs.sendMessage(tab.id, { action: 'START_VISIBLE_CAPTURE' });
+      // Close popup immediately
+      window.close();
     } catch (err) {
       alert('Lỗi: ' + err.message);
     }

@@ -61,14 +61,43 @@
       <div class="topbar-right">
         <!-- Actions when viewing Gallery (Slices) -->
         <div class="topbar-actions-group" id="actions-gallery">
-          <button class="btn btn-secondary" id="btn-download-all" title="Tải tất cả các phần ảnh riêng lẻ về máy">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            <span>Tải tất cả (<span id="btn-download-count">0</span>)</span>
-          </button>
+          <div class="download-btn-group">
+            <button class="btn btn-secondary btn-zip" id="btn-download-all" title="Đóng gói tất cả các ảnh đã chọn vào 1 file ZIP duy nhất">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              <span id="btn-download-all-text">Tải file ZIP (<span id="btn-download-count">0</span>)</span>
+            </button>
+            <button class="btn btn-secondary btn-dropdown-toggle" id="btn-download-options" title="Tùy chọn tải thêm">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="download-dropdown-menu" id="download-dropdown-menu" style="display: none;">
+              <button class="dropdown-item" id="opt-download-zip">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                </svg>
+                <div class="dropdown-item-content">
+                  <span class="dropdown-item-title">Đóng gói file ZIP (.zip)</span>
+                  <span class="dropdown-item-desc">Nén tất cả ảnh vào 1 tệp, sắp xếp theo thứ tự</span>
+                </div>
+              </button>
+              <button class="dropdown-item" id="opt-download-separate">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <div class="dropdown-item-content">
+                  <span class="dropdown-item-title">Tải từng ảnh rời rạc (.png)</span>
+                  <span class="dropdown-item-desc">Tải từng tệp ảnh lẻ về máy</span>
+                </div>
+              </button>
+            </div>
+          </div>
 
           <button class="btn btn-primary" id="btn-stitch" title="Ghép các phần ảnh đã chọn thành 1 bức ảnh toàn bộ">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -289,10 +318,37 @@
       </div>
     </div>
 
+    <!-- ZIP Progress Modal -->
+    <div class="zip-modal" id="zip-modal" style="display: none;">
+      <div class="zip-modal-backdrop"></div>
+      <div class="zip-modal-dialog">
+        <div class="zip-modal-icon">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <div class="zip-modal-title">Đang đóng gói file ZIP</div>
+        <div class="zip-modal-desc" id="zip-modal-desc">Đang xử lý hình ảnh...</div>
+
+        <div class="zip-progress-track">
+          <div class="zip-progress-bar" id="zip-progress-bar" style="width: 0%;"></div>
+        </div>
+
+        <div class="zip-modal-footer">
+          <span class="zip-modal-status" id="zip-modal-status">0%</span>
+          <button class="zip-cancel-btn" id="btn-cancel-zip">Hủy bỏ</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast Notification -->
     <div class="toast" id="toast"></div>
   </div>
 
+  <!-- JSZip Library for client-side multi-image ZIP packaging -->
+  <script src="jszip.min.js"></script>
   <script src="preview.js"></script>
 </body>
 </html>

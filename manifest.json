@@ -47,7 +47,8 @@
       "resources": [
         "preview/preview.html",
         "preview/preview.css",
-        "preview/preview.js"
+        "preview/preview.js",
+        "preview/jszip.min.js"
       ],
       "matches": [
         "<all_urls>"

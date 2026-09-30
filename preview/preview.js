@@ -18,11 +18,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const actionsGallery = document.getElementById('actions-gallery');
   const actionsMerged = document.getElementById('actions-merged');
   const btnDownloadAll = document.getElementById('btn-download-all');
+  const btnDownloadAllText = document.getElementById('btn-download-all-text');
   const btnDownloadCount = document.getElementById('btn-download-count');
+  const btnDownloadOptions = document.getElementById('btn-download-options');
+  const downloadDropdownMenu = document.getElementById('download-dropdown-menu');
+  const optDownloadZip = document.getElementById('opt-download-zip');
+  const optDownloadSeparate = document.getElementById('opt-download-separate');
   const btnStitch = document.getElementById('btn-stitch');
   const btnBackToGallery = document.getElementById('btn-back-to-gallery');
   const btnCopy = document.getElementById('btn-copy');
   const btnDownload = document.getElementById('btn-download');
+
+  // ZIP Progress Modal Elements
+  const zipModal = document.getElementById('zip-modal');
+  const zipModalDesc = document.getElementById('zip-modal-desc');
+  const zipProgressBar = document.getElementById('zip-progress-bar');
+  const zipModalStatus = document.getElementById('zip-modal-status');
+  const btnCancelZip = document.getElementById('btn-cancel-zip');
 
   // Main Viewports & States
   const previewViewport = document.getElementById('preview-viewport');
@@ -344,7 +356,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     selectedCountBadge.textContent = selectedCount;
     totalCountBadge.textContent = totalCount;
-    btnDownloadCount.textContent = selectedCount;
+    if (btnDownloadCount) btnDownloadCount.textContent = selectedCount;
+
+    // Dynamically update download button label based on selected count
+    if (btnDownloadAllText) {
+      if (selectedCount <= 1) {
+        btnDownloadAllText.innerHTML = `Tải ảnh (<span id="btn-download-count">${selectedCount}</span>)`;
+      } else {
+        btnDownloadAllText.innerHTML = `Tải file ZIP (<span id="btn-download-count">${selectedCount}</span>)`;
+      }
+    }
 
     checkSelectAll.checked = selectedCount === totalCount;
     checkSelectAll.indeterminate = selectedCount > 0 && selectedCount < totalCount;
@@ -609,10 +630,54 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ==========================================================================
-  // DOWNLOAD & EXPORT HANDLERS
+  // DOWNLOAD & EXPORT HANDLERS (ZIP & PNG)
   // ==========================================================================
 
-  // Download all separate slices
+  let isZipPackaging = false;
+  let zipCancelRequested = false;
+
+  // Toggle download options dropdown
+  if (btnDownloadOptions && downloadDropdownMenu) {
+    btnDownloadOptions.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = downloadDropdownMenu.style.display !== 'none';
+      downloadDropdownMenu.style.display = isVisible ? 'none' : 'flex';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.download-btn-group')) {
+        downloadDropdownMenu.style.display = 'none';
+      }
+    });
+  }
+
+  // Dropdown option: Download ZIP
+  if (optDownloadZip) {
+    optDownloadZip.addEventListener('click', () => {
+      if (downloadDropdownMenu) downloadDropdownMenu.style.display = 'none';
+      handleZipDownload();
+    });
+  }
+
+  // Dropdown option: Download Separate PNGs
+  if (optDownloadSeparate) {
+    optDownloadSeparate.addEventListener('click', () => {
+      if (downloadDropdownMenu) downloadDropdownMenu.style.display = 'none';
+      handleSeparateDownload();
+    });
+  }
+
+  // Cancel ZIP packaging
+  if (btnCancelZip) {
+    btnCancelZip.addEventListener('click', () => {
+      zipCancelRequested = true;
+      if (zipModal) zipModal.style.display = 'none';
+      isZipPackaging = false;
+      showToast('Đã hủy quá trình đóng gói ZIP.');
+    });
+  }
+
+  // Main Download Button: Auto ZIP for multiple images, direct PNG for single image
   btnDownloadAll.addEventListener('click', async () => {
     const selectedSlices = slicesState.filter(s => s.selected);
     if (selectedSlices.length === 0) {
@@ -620,19 +685,159 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    showToast(`⏳ Đang bắt đầu tải về ${selectedSlices.length} ảnh...`, 2000);
+    if (selectedSlices.length === 1) {
+      // If only 1 image selected, download directly as single PNG
+      const slice = selectedSlices[0];
+      downloadSingleSlice(slice, slice.index !== undefined ? slice.index : 0);
+    } else {
+      // 2 or more images (e.g. 50, 100 images): Pack into a clean ZIP file!
+      await handleZipDownload();
+    }
+  });
 
+  // Package all selected slices into a single ZIP archive
+  async function handleZipDownload() {
+    if (isZipPackaging) return;
+    const selectedSlices = slicesState.filter(s => s.selected);
+    if (selectedSlices.length === 0) {
+      alert('Vui lòng chọn ít nhất một phần ảnh để tải về.');
+      return;
+    }
+
+    if (typeof JSZip === 'undefined') {
+      alert('Thư viện đóng gói ZIP chưa sẵn sàng. Đang chuyển sang tải từng ảnh...');
+      await handleSeparateDownload();
+      return;
+    }
+
+    isZipPackaging = true;
+    zipCancelRequested = false;
+
+    // Reset and show modal
+    if (zipProgressBar) zipProgressBar.style.width = '0%';
+    if (zipModalStatus) zipModalStatus.textContent = '0%';
+    if (zipModalDesc) zipModalDesc.textContent = `Đang chuẩn bị đóng gói ${selectedSlices.length} ảnh...`;
+    if (zipModal) zipModal.style.display = 'flex';
+
+    try {
+      const zip = new JSZip();
+
+      // Determine padding digits based on total count (e.g. 100 slices -> "001", "002" ...)
+      const padLen = Math.max(2, String(selectedSlices.length).length);
+
+      // 1. Add all selected slices into the zip archive
+      for (let i = 0; i < selectedSlices.length; i++) {
+        if (zipCancelRequested) return;
+
+        const slice = selectedSlices[i];
+        const stepNum = i + 1;
+        const padIndex = String(stepNum).padStart(padLen, '0');
+        const fileName = `${defaultBaseName}-trang-${padIndex}.png`;
+
+        // Strip data:image/...;base64, prefix for ultra-fast base64 memory loading
+        const base64Data = slice.dataUrl.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
+        zip.file(fileName, base64Data, { base64: true });
+
+        // Update progress (adding phase: 0% -> 40%)
+        const addPercent = Math.round((stepNum / selectedSlices.length) * 40);
+        if (zipProgressBar) zipProgressBar.style.width = `${addPercent}%`;
+        if (zipModalStatus) zipModalStatus.textContent = `${addPercent}%`;
+        if (zipModalDesc) zipModalDesc.textContent = `Đang gom ảnh ${stepNum} / ${selectedSlices.length}...`;
+
+        // Yield execution every 6 files to prevent UI freeze on large sets (e.g. 100 images)
+        if (i % 6 === 0) {
+          await sleep(15);
+        }
+      }
+
+      if (zipCancelRequested) return;
+
+      // 2. Add metadata readme file
+      const infoContent = [
+        `==================================================`,
+        `Bộ ảnh chụp từ Web Capture Extension`,
+        `==================================================`,
+        `Tiêu đề trang: ${captureData?.pageTitle || 'Trang web'}`,
+        `Địa chỉ URL: ${captureData?.pageUrl || '---'}`,
+        `Tổng số phần ảnh: ${selectedSlices.length}`,
+        `Thời gian chụp: ${new Date().toLocaleString('vi-VN')}`,
+        `Thứ tự file: trang-001.png đến trang-${String(selectedSlices.length).padStart(padLen, '0')}.png`,
+        `==================================================`
+      ].join('\r\n');
+      zip.file('thong-tin-chup.txt', infoContent);
+
+      if (zipModalDesc) zipModalDesc.textContent = 'Đang nén dữ liệu vào file ZIP...';
+
+      // 3. Generate ZIP binary blob with compression (compressing phase: 40% -> 100%)
+      const zipBlob = await zip.generateAsync(
+        {
+          type: 'blob',
+          compression: 'DEFLATE',
+          compressionOptions: { level: 6 }
+        },
+        (metadata) => {
+          if (zipCancelRequested) return;
+          const compressPercent = 40 + Math.round(metadata.percent * 0.60);
+          if (zipProgressBar) zipProgressBar.style.width = `${compressPercent}%`;
+          if (zipModalStatus) zipModalStatus.textContent = `${compressPercent}%`;
+          if (zipModalDesc) zipModalDesc.textContent = `Đang nén dữ liệu... ${Math.round(metadata.percent)}%`;
+        }
+      );
+
+      if (zipCancelRequested) return;
+
+      if (zipProgressBar) zipProgressBar.style.width = '100%';
+      if (zipModalStatus) zipModalStatus.textContent = '100%';
+      if (zipModalDesc) zipModalDesc.textContent = 'Hoàn tất! Đang tải file ZIP về máy...';
+      await sleep(350);
+
+      // Trigger download
+      const zipFileName = `${defaultBaseName}.zip`;
+      const blobUrl = URL.createObjectURL(zipBlob);
+      downloadDataUrl(blobUrl, zipFileName);
+
+      // Clean up memory
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+
+      showToast(`📦 Đã đóng gói thành công file ZIP chứa ${selectedSlices.length} ảnh!`, 3500);
+    } catch (err) {
+      console.error('Lỗi khi đóng gói file ZIP:', err);
+      alert('Đã xảy ra lỗi khi tạo file ZIP: ' + (err.message || err));
+    } finally {
+      isZipPackaging = false;
+      if (zipModal) zipModal.style.display = 'none';
+    }
+  }
+
+  // Download slices individually
+  async function handleSeparateDownload() {
+    const selectedSlices = slicesState.filter(s => s.selected);
+    if (selectedSlices.length === 0) {
+      alert('Vui lòng chọn ít nhất một phần ảnh để tải về.');
+      return;
+    }
+
+    if (selectedSlices.length > 15) {
+      const confirmed = confirm(
+        `Bạn đang chuẩn bị tải về ${selectedSlices.length} tệp ảnh riêng lẻ.\nTrình duyệt có thể hỏi xác nhận cho phép tải nhiều tệp.\n\nKhuyên dùng: Bạn nên chọn "Tải file ZIP" để đóng gói thành 1 tệp duy nhất.\n\nBạn có chắc chắn muốn tiếp tục tải lẻ không?`
+      );
+      if (!confirmed) return;
+    }
+
+    showToast(`⏳ Đang bắt đầu tải về ${selectedSlices.length} ảnh lẻ...`, 2000);
+
+    const padLen = Math.max(2, String(selectedSlices.length).length);
     for (let i = 0; i < selectedSlices.length; i++) {
       const slice = selectedSlices[i];
-      const padNum = String(slice.index + 1).padStart(2, '0');
-      const filename = `${defaultBaseName}-phan-${padNum}.png`;
+      const padNum = String(i + 1).padStart(padLen, '0');
+      const filename = `${defaultBaseName}-trang-${padNum}.png`;
 
       downloadDataUrl(slice.dataUrl, filename);
-      await sleep(250); // slight delay between downloads
+      await sleep(250); // slight delay between downloads to prevent browser choke
     }
 
     showToast(`✅ Đã tải về toàn bộ ${selectedSlices.length} ảnh!`, 3000);
-  });
+  }
 
   // Download single slice
   function downloadSingleSlice(slice, index) {
