@@ -57,6 +57,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Relay: progress update from content script -> broadcast to popup
+  if (message.action === 'CAPTURE_PROGRESS') {
+    // Broadcast to all extension pages (popup listens to this)
+    chrome.runtime.sendMessage({
+      action: 'CAPTURE_PROGRESS',
+      percent: message.percent,
+      currentStep: message.currentStep,
+      totalSteps: message.totalSteps
+    }).catch(() => {/* popup may be closed */});
+    sendResponse({ status: 'OK' });
+    return true;
+  }
+
+  // Relay: capture cancelled from content script -> popup
+  if (message.action === 'CAPTURE_CANCELLED') {
+    chrome.runtime.sendMessage({ action: 'CAPTURE_CANCELLED' }).catch(() => {});
+    sendResponse({ status: 'OK' });
+    return true;
+  }
+
   // 2. Full page capture completed -> Save meta & Open Preview tab
   if (message.action === 'FINISH_FULL_PAGE_CAPTURE') {
     const captureData = {
@@ -74,6 +94,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     };
 
     chrome.storage.local.set({ latestCaptureData: captureData }, () => {
+      // Notify popup that capture is done before opening preview
+      chrome.runtime.sendMessage({ action: 'CAPTURE_DONE' }).catch(() => {});
       chrome.tabs.create({ url: chrome.runtime.getURL('preview/preview.html') });
     });
     sendResponse({ status: 'OK' });
@@ -94,10 +116,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     };
 
     chrome.storage.local.set({ latestCaptureData: captureData }, () => {
+      chrome.runtime.sendMessage({ action: 'CAPTURE_DONE' }).catch(() => {});
       chrome.tabs.create({ url: chrome.runtime.getURL('preview/preview.html') });
     });
     sendResponse({ status: 'OK' });
     return true;
   }
 });
-

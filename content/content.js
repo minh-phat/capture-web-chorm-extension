@@ -41,16 +41,25 @@
     }
   });
 
+  // Send progress update to popup (via background relay or direct runtime message)
+  function sendProgressToPopup(percent, currentStep, totalSteps) {
+    try {
+      chrome.runtime.sendMessage({
+        action: 'CAPTURE_PROGRESS',
+        percent: percent,
+        currentStep: currentStep,
+        totalSteps: totalSteps
+      });
+    } catch (e) {
+      // Popup may have been closed - ignore
+    }
+  }
+
   // Main full page capture runner
   async function runFullPageCapture(scrollDelay) {
     isCapturing = true;
     cancelRequested = false;
     originalScrollPos = { x: window.scrollX, y: window.scrollY };
-
-    // Wait slightly to ensure extension popup window is completely closed
-    await sleep(250);
-
-    showHudOverlay();
 
     // Temporarily hide scrollbar so it doesn't appear in the captured images
     const originalHtmlOverflow = document.documentElement.style.overflow;
@@ -106,11 +115,8 @@
         stepIndex++;
         const percent = Math.min(100, Math.round((stepIndex / totalSteps) * 100));
 
-        // CRITICAL FIX: Hide the extension HUD completely before capturing screenshot
-        // so that the capture tool UI never appears inside the captured image!
-        setHudVisibility(false);
-        // Wait for browser repaint to ensure HUD is removed from viewport
-        await new Promise(r => requestAnimationFrame(() => setTimeout(r, 40)));
+        // Wait a frame to ensure page is fully repainted before capture
+        await new Promise(r => requestAnimationFrame(() => setTimeout(r, 30)));
 
         // Capture current viewport slice & store directly into background storage
         const storeResult = await requestSliceStore({
@@ -121,9 +127,8 @@
           sliceHeight: sliceHeight
         });
 
-        // Restore HUD visibility and update progress bar for user feedback
-        setHudVisibility(true);
-        updateHudProgress(percent, stepIndex, totalSteps);
+        // Update progress in popup
+        sendProgressToPopup(percent, stepIndex, totalSteps);
 
         if (!storeResult || storeResult.error) {
           throw new Error("Không thể chụp ảnh từ trình duyệt: " + (storeResult?.error || 'Lỗi chụp ảnh'));
@@ -145,10 +150,10 @@
       // Scroll back to original position
       window.scrollTo(originalScrollPos.x, originalScrollPos.y);
       restoreStickyElements();
-      removeHudOverlay();
 
       if (cancelRequested) {
         isCapturing = false;
+        chrome.runtime.sendMessage({ action: 'CAPTURE_CANCELLED' });
         return;
       }
 
@@ -175,7 +180,9 @@
       document.body.style.overflow = originalBodyOverflow;
       window.scrollTo(originalScrollPos.x, originalScrollPos.y);
       restoreStickyElements();
-      removeHudOverlay();
+      try {
+        chrome.runtime.sendMessage({ action: 'CAPTURE_CANCELLED' });
+      } catch (e) {}
       alert('Đã xảy ra lỗi khi chụp hình toàn bộ trang web: ' + (err.message || err));
     } finally {
       document.documentElement.style.scrollBehavior = originalScrollBehavior;
@@ -189,9 +196,8 @@
   // Single visible capture runner
   async function runVisibleCapture() {
     try {
-      removeHudOverlay();
-      // Wait for extension popup to completely close so it won't be captured
-      await sleep(250);
+      // Wait a brief moment for page to settle (popup is still open, not closed)
+      await sleep(100);
 
       const devicePixelRatio = window.devicePixelRatio || 1;
       const sliceDataUrl = await requestSliceCapture();
@@ -214,6 +220,9 @@
       });
     } catch (err) {
       console.error('Lỗi chụp visible area:', err);
+      try {
+        chrome.runtime.sendMessage({ action: 'CAPTURE_CANCELLED' });
+      } catch (e) {}
     }
   }
 
@@ -260,9 +269,6 @@
     const allElements = document.querySelectorAll('*');
 
     allElements.forEach((el) => {
-      if (el.id === 'web-capture-progress-hud' || el.closest('#web-capture-progress-hud')) {
-        return;
-      }
       try {
         const style = window.getComputedStyle(el);
         if (style.position === 'fixed' || style.position === 'sticky') {
@@ -292,7 +298,6 @@
   // Wait for images in viewport to finish loading (essential for comic/manga readers)
   function triggerAndWaitLazyImages() {
     return new Promise((resolve) => {
-      // Find all images near viewport
       const images = Array.from(document.querySelectorAll('img'));
       const pendingImages = images.filter(img => {
         const rect = img.getBoundingClientRect();
@@ -327,68 +332,6 @@
         }
       });
     });
-  }
-
-  // HUD Progress Overlay UI creation & management
-  function showHudOverlay() {
-    removeHudOverlay();
-
-    const hud = document.createElement('div');
-    hud.id = 'web-capture-progress-hud';
-    hud.innerHTML = `
-      <div class="web-capture-hud-header">
-        <div class="web-capture-hud-title">
-          <span class="web-capture-hud-spinner"></span>
-          Đang chụp toàn bộ trang...
-        </div>
-        <div class="web-capture-hud-percent" id="web-capture-hud-percent">0%</div>
-      </div>
-      <div class="web-capture-progress-bar-bg">
-        <div class="web-capture-progress-bar-fill" id="web-capture-hud-bar" style="width: 0%;"></div>
-      </div>
-      <div class="web-capture-hud-footer">
-        <span id="web-capture-hud-step-text">Đang cuộn và chụp...</span>
-        <button class="web-capture-cancel-btn" id="web-capture-cancel-btn">Hủy</button>
-      </div>
-    `;
-
-    document.body.appendChild(hud);
-
-    document.getElementById('web-capture-cancel-btn')?.addEventListener('click', () => {
-      cancelRequested = true;
-      removeHudOverlay();
-    });
-  }
-
-  function updateHudProgress(percent, currentStep, totalSteps) {
-    const percentEl = document.getElementById('web-capture-hud-percent');
-    const barEl = document.getElementById('web-capture-hud-bar');
-    const stepTextEl = document.getElementById('web-capture-hud-step-text');
-
-    if (percentEl) percentEl.textContent = `${percent}%`;
-    if (barEl) barEl.style.width = `${percent}%`;
-    if (stepTextEl) stepTextEl.textContent = `Bước ${currentStep} / ${totalSteps}`;
-  }
-
-  function setHudVisibility(visible) {
-    const hud = document.getElementById('web-capture-progress-hud');
-    if (!hud) return;
-    if (visible) {
-      hud.style.setProperty('display', 'block', 'important');
-      hud.style.setProperty('opacity', '1', 'important');
-      hud.style.setProperty('visibility', 'visible', 'important');
-    } else {
-      hud.style.setProperty('display', 'none', 'important');
-      hud.style.setProperty('opacity', '0', 'important');
-      hud.style.setProperty('visibility', 'hidden', 'important');
-    }
-  }
-
-  function removeHudOverlay() {
-    const hud = document.getElementById('web-capture-progress-hud');
-    if (hud) {
-      hud.remove();
-    }
   }
 
   function sleep(ms) {

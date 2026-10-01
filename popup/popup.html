@@ -91,6 +91,50 @@
     </footer>
   </div>
 
+  <!-- Capture Progress Screen (hidden by default) -->
+  <div class="capture-screen" id="capture-screen" style="display:none;">
+    <div class="capture-screen-header">
+      <div class="capture-brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      <span>Web Capture</span>
+    </div>
+
+    <div class="capture-anim">
+      <div class="capture-ring"></div>
+      <div class="capture-ring capture-ring--2"></div>
+      <div class="capture-camera-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="capture-status-text" id="capture-status-text">Đang chuẩn bị chụp...</div>
+
+    <div class="capture-progress-wrap">
+      <div class="capture-progress-bar-bg">
+        <div class="capture-progress-bar-fill" id="capture-progress-bar" style="width:0%"></div>
+      </div>
+      <div class="capture-progress-info">
+        <span id="capture-step-text">Bắt đầu...</span>
+        <span id="capture-percent-text">0%</span>
+      </div>
+    </div>
+
+    <button class="capture-cancel-btn" id="capture-cancel-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+      Hủy chụp
+    </button>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

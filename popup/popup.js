@@ -5,11 +5,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnVisibleArea = document.getElementById('btn-visible-area');
   const btnOpenRecent = document.getElementById('btn-open-recent');
   const speedBtns = document.querySelectorAll('.speed-btn');
-
   const checkShowGallery = document.getElementById('check-show-gallery');
+
+  // Capture screen elements
+  const captureScreen = document.getElementById('capture-screen');
+  const captureStatusText = document.getElementById('capture-status-text');
+  const captureProgressBar = document.getElementById('capture-progress-bar');
+  const captureStepText = document.getElementById('capture-step-text');
+  const capturePercentText = document.getElementById('capture-percent-text');
+  const captureCancelBtn = document.getElementById('capture-cancel-btn');
 
   let selectedDelay = 400;
   let showGalleryFirst = true;
+  let captureTabId = null;
+  let isCapturing = false;
 
   // Load saved settings if present
   try {
@@ -31,7 +40,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkShowGallery.checked = showGalleryFirst;
       }
     } else {
-      // Default is true as requested by user
       chrome.storage.local.set({ showGalleryFirst: true });
     }
   } catch (e) {}
@@ -54,6 +62,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // Listen for progress updates from content script via background
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === 'CAPTURE_PROGRESS') {
+      updateCaptureProgress(message.percent, message.currentStep, message.totalSteps);
+    }
+    if (message.action === 'CAPTURE_DONE') {
+      // Capture completed - popup will be closed by background when preview tab opens
+      hideCaptureScreen();
+    }
+    if (message.action === 'CAPTURE_CANCELLED') {
+      hideCaptureScreen();
+    }
+  });
+
+  // Cancel button inside progress screen
+  captureCancelBtn.addEventListener('click', async () => {
+    if (captureTabId) {
+      chrome.tabs.sendMessage(captureTabId, { action: 'CANCEL_CAPTURE' });
+    }
+    hideCaptureScreen();
+  });
+
   // 1. Full Page Capture Click
   btnFullPage.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -62,23 +92,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Check if URL is capturable (chrome:// or file:// or edge:// cannot be captured by default content scripts)
     if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('chrome-extension://'))) {
       alert('Không thể chụp hình trên các trang hệ thống nội bộ của trình duyệt.');
       return;
     }
 
     try {
-      // Ensure content script is ready
       await ensureContentScriptInjected(tab.id);
 
-      // Trigger capture
+      captureTabId = tab.id;
+      showCaptureScreen('Đang chụp toàn bộ trang...');
+
       chrome.tabs.sendMessage(tab.id, {
         action: 'START_FULL_PAGE_CAPTURE',
         scrollDelay: selectedDelay
       });
-      // Close popup immediately so it won't appear in the captured screenshot
-      window.close();
+      // Do NOT close popup - keep it open to show progress
     } catch (err) {
       console.error(err);
       alert('Không thể kết nối với trang web: ' + err.message);
@@ -98,9 +127,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       await ensureContentScriptInjected(tab.id);
 
+      captureTabId = tab.id;
+      showCaptureScreen('Đang chụp màn hình hiện tại...');
+
       chrome.tabs.sendMessage(tab.id, { action: 'START_VISIBLE_CAPTURE' });
-      // Close popup immediately
-      window.close();
+      // Do NOT close popup
     } catch (err) {
       alert('Lỗi: ' + err.message);
     }
@@ -112,6 +143,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.close();
   });
 
+  // ---- Capture Screen helpers ----
+  function showCaptureScreen(statusText) {
+    isCapturing = true;
+    captureStatusText.textContent = statusText || 'Đang chuẩn bị chụp...';
+    captureProgressBar.style.width = '0%';
+    captureStepText.textContent = 'Bắt đầu...';
+    capturePercentText.textContent = '0%';
+    captureScreen.style.display = 'flex';
+  }
+
+  function hideCaptureScreen() {
+    isCapturing = false;
+    captureTabId = null;
+    captureScreen.style.display = 'none';
+  }
+
+  function updateCaptureProgress(percent, currentStep, totalSteps) {
+    captureProgressBar.style.width = `${percent}%`;
+    capturePercentText.textContent = `${percent}%`;
+    if (currentStep !== undefined && totalSteps !== undefined) {
+      captureStepText.textContent = `Bước ${currentStep} / ${totalSteps}`;
+    }
+    if (percent >= 100) {
+      captureStatusText.textContent = 'Hoàn tất! Đang mở xem trước...';
+      captureStepText.textContent = 'Ghép ảnh...';
+    }
+  }
+
   // Helper: Ensure content script is loaded on the page
   async function ensureContentScriptInjected(tabId) {
     return new Promise((resolve, reject) => {
@@ -119,7 +178,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (response && response.status === 'READY') {
           resolve();
         } else {
-          // Dynamically inject content script if tab was opened before extension was loaded
           try {
             await chrome.scripting.insertCSS({
               target: { tabId: tabId },
