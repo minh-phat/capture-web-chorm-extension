@@ -7,6 +7,7 @@
 
   let isCapturing = false;
   let cancelRequested = false;
+  let stopRequested = false;
   let hiddenElementsMap = new Map();
   let originalScrollPos = { x: 0, y: 0 };
 
@@ -39,6 +40,12 @@
       sendResponse({ status: 'CANCELLED' });
       return true;
     }
+
+    if (message.action === 'STOP_CAPTURE') {
+      stopRequested = true;
+      sendResponse({ status: 'STOPPED' });
+      return true;
+    }
   });
 
   // Send progress update to popup (via background relay or direct runtime message)
@@ -59,6 +66,7 @@
   async function runFullPageCapture(scrollDelay) {
     isCapturing = true;
     cancelRequested = false;
+    stopRequested = false;
     originalScrollPos = { x: window.scrollX, y: window.scrollY };
 
     // Temporarily hide scrollbar so it doesn't appear in the captured images
@@ -97,8 +105,10 @@
       let currentY = 0;
       const totalSteps = Math.ceil(totalHeight / viewportHeight);
       let stepIndex = 0;
+      let lastScrollY = 0;
+      let lastSliceHeight = 0;
 
-      while (currentY < totalHeight && !cancelRequested) {
+      while (currentY < totalHeight && !cancelRequested && !stopRequested) {
         // Scroll to position
         window.scrollTo(0, currentY);
 
@@ -111,6 +121,8 @@
         // Calculate actual visible height for the slice (last slice may be partial)
         const actualScrollY = window.scrollY;
         const sliceHeight = Math.min(viewportHeight, totalHeight - actualScrollY);
+        lastScrollY = actualScrollY;
+        lastSliceHeight = sliceHeight;
 
         stepIndex++;
         const percent = Math.min(100, Math.round((stepIndex / totalSteps) * 100));
@@ -154,6 +166,25 @@
       if (cancelRequested) {
         isCapturing = false;
         chrome.runtime.sendMessage({ action: 'CAPTURE_CANCELLED' });
+        return;
+      }
+
+      // Nếu người dùng nhấn "Dừng & Lưu": gửi phần ảnh đã chụp được
+      if (stopRequested && stepIndex > 0) {
+        chrome.runtime.sendMessage({
+          action: 'FINISH_FULL_PAGE_CAPTURE',
+          data: {
+            sliceCount: stepIndex,
+            totalWidth: totalWidth,
+            totalHeight: lastScrollY + lastSliceHeight, // chiều cao thực tế đã chụp
+            viewportWidth: viewportWidth,
+            viewportHeight: viewportHeight,
+            devicePixelRatio: devicePixelRatio,
+            pageTitle: document.title || 'Trang web',
+            pageUrl: window.location.href
+          }
+        });
+        isCapturing = false;
         return;
       }
 

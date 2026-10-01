@@ -126,13 +126,21 @@
       </div>
     </div>
 
-    <button class="capture-cancel-btn" id="capture-cancel-btn">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-      Hủy chụp
-    </button>
+    <div class="capture-action-btns">
+      <button class="capture-stop-btn" id="capture-stop-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="4" y="4" width="16" height="16" rx="2"/>
+        </svg>
+        Dừng &amp; Lưu
+      </button>
+      <button class="capture-cancel-btn" id="capture-cancel-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Hủy
+      </button>
+    </div>
   </div>
 
   <script src="popup.js"></script>

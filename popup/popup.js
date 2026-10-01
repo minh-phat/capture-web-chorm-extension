@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const captureStepText = document.getElementById('capture-step-text');
   const capturePercentText = document.getElementById('capture-percent-text');
   const captureCancelBtn = document.getElementById('capture-cancel-btn');
+  const captureStopBtn = document.getElementById('capture-stop-btn');
 
   let selectedDelay = 400;
   let showGalleryFirst = true;
@@ -78,10 +79,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Cancel button inside progress screen
   captureCancelBtn.addEventListener('click', async () => {
+    captureCancelBtn.disabled = true;
+    captureStopBtn.disabled = true;
     if (captureTabId) {
       chrome.tabs.sendMessage(captureTabId, { action: 'CANCEL_CAPTURE' });
     }
     hideCaptureScreen();
+  });
+
+  // Stop & Save button inside progress screen
+  captureStopBtn.addEventListener('click', async () => {
+    if (!captureTabId) return;
+    captureStopBtn.disabled = true;
+    captureCancelBtn.disabled = true;
+    captureStatusText.textContent = 'Đang lưu ảnh đã chụp...';
+    captureStepText.textContent = 'Vui lòng chờ...';
+    chrome.tabs.sendMessage(captureTabId, { action: 'STOP_CAPTURE' });
   });
 
   // 1. Full Page Capture Click
@@ -150,6 +163,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     captureProgressBar.style.width = '0%';
     captureStepText.textContent = 'Bắt đầu...';
     capturePercentText.textContent = '0%';
+    captureStopBtn.disabled = false;
+    captureCancelBtn.disabled = false;
     captureScreen.style.display = 'flex';
   }
 
