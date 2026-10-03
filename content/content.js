@@ -24,7 +24,11 @@
         return true;
       }
       const scrollDelay = message.scrollDelay || 400;
-      runFullPageCapture(scrollDelay);
+      runFullPageCapture(scrollDelay, {
+        sliceHeight: message.sliceHeight || null,
+        xFrom: (message.xFrom !== null && message.xFrom !== undefined) ? message.xFrom : null,
+        xTo: (message.xTo !== null && message.xTo !== undefined) ? message.xTo : null
+      });
       sendResponse({ status: 'STARTED' });
       return true;
     }
@@ -46,6 +50,16 @@
       sendResponse({ status: 'STOPPED' });
       return true;
     }
+
+    if (message.action === 'TOGGLE_COORD_INSPECTOR') {
+      if (message.active) {
+        startCoordInspector();
+      } else {
+        stopCoordInspector();
+      }
+      sendResponse({ status: 'OK' });
+      return true;
+    }
   });
 
   // Send progress update to popup (via background relay or direct runtime message)
@@ -63,11 +77,19 @@
   }
 
   // Main full page capture runner
-  async function runFullPageCapture(scrollDelay) {
+  async function runFullPageCapture(scrollDelay, cropOptions = {}) {
     isCapturing = true;
     cancelRequested = false;
     stopRequested = false;
     originalScrollPos = { x: window.scrollX, y: window.scrollY };
+
+    // Resolve crop options
+    const customSliceHeight = (cropOptions.sliceHeight && cropOptions.sliceHeight > 0)
+      ? Math.floor(cropOptions.sliceHeight) : null;
+    const xFromPx = (cropOptions.xFrom !== null && cropOptions.xFrom !== undefined && cropOptions.xFrom >= 0)
+      ? Math.floor(cropOptions.xFrom) : null;
+    const xToPx = (cropOptions.xTo !== null && cropOptions.xTo !== undefined && cropOptions.xTo > 0)
+      ? Math.floor(cropOptions.xTo) : null;
 
     // Temporarily hide scrollbar so it doesn't appear in the captured images
     const originalHtmlOverflow = document.documentElement.style.overflow;
@@ -102,8 +124,19 @@
       const viewportHeight = window.innerHeight;
       const devicePixelRatio = window.devicePixelRatio || 1;
 
+      // Determine effective slice height (custom or viewport height)
+      const effectiveSliceH = customSliceHeight
+        ? Math.min(customSliceHeight, viewportHeight)
+        : viewportHeight;
+
+      // Determine effective X crop bounds (in CSS pixels)
+      const effectiveXFrom = (xFromPx !== null) ? Math.max(0, xFromPx) : 0;
+      const effectiveXTo   = (xToPx !== null)   ? Math.min(xToPx, totalWidth) : totalWidth;
+      const effectiveCropWidth = Math.max(1, effectiveXTo - effectiveXFrom);
+      const hasCrop = (effectiveXFrom > 0 || effectiveXTo < totalWidth);
+
       let currentY = 0;
-      const totalSteps = Math.ceil(totalHeight / viewportHeight);
+      const totalSteps = Math.ceil(totalHeight / effectiveSliceH);
       let stepIndex = 0;
       let lastScrollY = 0;
       let lastSliceHeight = 0;
@@ -120,7 +153,7 @@
 
         // Calculate actual visible height for the slice (last slice may be partial)
         const actualScrollY = window.scrollY;
-        const sliceHeight = Math.min(viewportHeight, totalHeight - actualScrollY);
+        const sliceHeight = Math.min(effectiveSliceH, totalHeight - actualScrollY);
         lastScrollY = actualScrollY;
         lastSliceHeight = sliceHeight;
 
@@ -130,28 +163,43 @@
         // Wait a frame to ensure page is fully repainted before capture
         await new Promise(r => requestAnimationFrame(() => setTimeout(r, 30)));
 
-        // Capture current viewport slice & store directly into background storage
-        const storeResult = await requestSliceStore({
-          index: stepIndex - 1,
-          y: actualScrollY,
-          viewportWidth: viewportWidth,
-          viewportHeight: viewportHeight,
-          sliceHeight: sliceHeight
-        });
+        // If X-crop is required: capture raw then crop via canvas before storing
+        let storeResult;
+        if (hasCrop) {
+          const rawDataUrl = await requestSliceCapture();
+          if (!rawDataUrl) throw new Error('Không thể chụp ảnh');
+          const croppedDataUrl = await cropDataUrl(
+            rawDataUrl,
+            effectiveXFrom * devicePixelRatio,
+            0,
+            effectiveCropWidth * devicePixelRatio,
+            sliceHeight * devicePixelRatio
+          );
+          storeResult = await storeSliceDataUrl(stepIndex - 1, croppedDataUrl, actualScrollY, effectiveCropWidth, viewportHeight, sliceHeight);
+        } else {
+          storeResult = await requestSliceStore({
+            index: stepIndex - 1,
+            y: actualScrollY,
+            viewportWidth: viewportWidth,
+            viewportHeight: viewportHeight,
+            sliceHeight: sliceHeight
+          });
+        }
 
         // Update progress in popup
         sendProgressToPopup(percent, stepIndex, totalSteps);
 
         if (!storeResult || storeResult.error) {
-          throw new Error("Không thể chụp ảnh từ trình duyệt: " + (storeResult?.error || 'Lỗi chụp ảnh'));
+          throw new Error('Đã xảy ra lỗi khi chụp: ' + (storeResult?.error || 'Lỗi chụp ảnh'));
         }
 
         // Advance Y offset
-        if (currentY + viewportHeight >= totalHeight) {
+        if (currentY + effectiveSliceH >= totalHeight) {
           break; // Reached bottom
         }
-        currentY += viewportHeight;
+        currentY += effectiveSliceH;
       }
+
 
       // Restore scroll behavior & overflow
       document.documentElement.style.scrollBehavior = originalScrollBehavior;
@@ -175,9 +223,9 @@
           action: 'FINISH_FULL_PAGE_CAPTURE',
           data: {
             sliceCount: stepIndex,
-            totalWidth: totalWidth,
-            totalHeight: lastScrollY + lastSliceHeight, // chiều cao thực tế đã chụp
-            viewportWidth: viewportWidth,
+            totalWidth: hasCrop ? effectiveCropWidth : totalWidth,
+            totalHeight: lastScrollY + lastSliceHeight,
+            viewportWidth: hasCrop ? effectiveCropWidth : viewportWidth,
             viewportHeight: viewportHeight,
             devicePixelRatio: devicePixelRatio,
             pageTitle: document.title || 'Trang web',
@@ -193,9 +241,9 @@
         action: 'FINISH_FULL_PAGE_CAPTURE',
         data: {
           sliceCount: stepIndex,
-          totalWidth: totalWidth,
+          totalWidth: hasCrop ? effectiveCropWidth : totalWidth,
           totalHeight: totalHeight,
-          viewportWidth: viewportWidth,
+          viewportWidth: hasCrop ? effectiveCropWidth : viewportWidth,
           viewportHeight: viewportHeight,
           devicePixelRatio: devicePixelRatio,
           pageTitle: document.title || 'Trang web',
@@ -277,6 +325,50 @@
           resolve(response || { error: 'Không phản hồi' });
         }
       });
+    });
+  }
+
+  // Store a pre-cropped dataUrl slice into storage (used when X-crop is applied)
+  function storeSliceDataUrl(index, dataUrl, y, cropWidth, viewportHeight, sliceHeight) {
+    return new Promise((resolve) => {
+      const sliceData = {
+        index: index,
+        dataUrl: dataUrl,
+        y: y,
+        viewportWidth: cropWidth,
+        viewportHeight: viewportHeight,
+        sliceHeight: sliceHeight
+      };
+      const key = `slice_${index}`;
+      chrome.storage.local.set({ [key]: sliceData }, () => {
+        if (chrome.runtime.lastError) {
+          resolve({ error: chrome.runtime.lastError.message });
+        } else {
+          resolve({ status: 'OK' });
+        }
+      });
+    });
+  }
+
+  // Crop a dataUrl image via canvas (all values in physical pixels)
+  function cropDataUrl(dataUrl, sx, sy, sw, sh) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        // Clamp to actual image bounds
+        const safeX = Math.max(0, Math.min(sx, img.width));
+        const safeY = Math.max(0, Math.min(sy, img.height));
+        const safeW = Math.max(1, Math.min(sw, img.width - safeX));
+        const safeH = Math.max(1, Math.min(sh, img.height - safeY));
+        const canvas = document.createElement('canvas');
+        canvas.width = safeW;
+        canvas.height = safeH;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, safeX, safeY, safeW, safeH, 0, 0, safeW, safeH);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = reject;
+      img.src = dataUrl;
     });
   }
 
@@ -367,6 +459,120 @@
 
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // ============================================================
+  // Coordinate Inspector
+  // ============================================================
+  let coordInspectorEl = null;
+  let coordMouseHandler = null;
+  let coordClickHandler = null;
+  let coordKeyHandler = null;
+
+  function startCoordInspector() {
+    if (coordInspectorEl) return; // already active
+
+    // Create floating tooltip
+    coordInspectorEl = document.createElement('div');
+    coordInspectorEl.id = 'web-capture-coord-inspector';
+    coordInspectorEl.innerHTML = `
+      <div class="wcci-header">
+        <span class="wcci-dot"></span>
+        <span class="wcci-title">Toạ độ — Web Capture</span>
+        <button class="wcci-close" title="Đóng (Esc)">×</button>
+      </div>
+      <div class="wcci-body">
+        <div class="wcci-row"><span class="wcci-lbl">X (CSS):</span><span class="wcci-val" id="wcci-x">-</span></div>
+        <div class="wcci-row"><span class="wcci-lbl">Y (CSS):</span><span class="wcci-val" id="wcci-y">-</span></div>
+        <div class="wcci-row"><span class="wcci-lbl">Scroll Y:</span><span class="wcci-val" id="wcci-sy">-</span></div>
+        <div class="wcci-row wcci-abs"><span class="wcci-lbl">X abs:</span><span class="wcci-val" id="wcci-ax">-</span></div>
+        <div class="wcci-row wcci-abs"><span class="wcci-lbl">Y abs:</span><span class="wcci-val" id="wcci-ay">-</span></div>
+      </div>
+      <div class="wcci-hint">Click trang = copy toạ độ</div>
+      <div class="wcci-copied" id="wcci-copied">✓ Đã copy!</div>
+    `;
+    document.body.appendChild(coordInspectorEl);
+
+    // Mouse move handler
+    coordMouseHandler = (e) => {
+      const scrollY = window.scrollY;
+      const scrollX = window.scrollX;
+      const cssX = Math.round(e.clientX);
+      const cssY = Math.round(e.clientY);
+      const absX = Math.round(e.clientX + scrollX);
+      const absY = Math.round(e.clientY + scrollY);
+
+      document.getElementById('wcci-x').textContent  = cssX + ' px';
+      document.getElementById('wcci-y').textContent  = cssY + ' px';
+      document.getElementById('wcci-sy').textContent = Math.round(scrollY) + ' px';
+      document.getElementById('wcci-ax').textContent = absX + ' px';
+      document.getElementById('wcci-ay').textContent = absY + ' px';
+
+      // Position tooltip near cursor, keep within viewport
+      const el = coordInspectorEl;
+      const margin = 18;
+      let left = e.clientX + margin;
+      let top  = e.clientY + margin;
+      if (left + el.offsetWidth + margin > window.innerWidth)  left = e.clientX - el.offsetWidth - margin;
+      if (top  + el.offsetHeight + margin > window.innerHeight) top  = e.clientY - el.offsetHeight - margin;
+      el.style.left = Math.max(4, left) + 'px';
+      el.style.top  = Math.max(4, top)  + 'px';
+    };
+
+    // Click on page = copy coordinates to clipboard
+    coordClickHandler = (e) => {
+      if (e.target.closest('#web-capture-coord-inspector')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      const absX = Math.round(e.clientX + scrollX);
+      const absY = Math.round(e.clientY + scrollY);
+      const cssX = Math.round(e.clientX);
+      const text = `X=${cssX}px (abs=${absX}px), ScrollY=${Math.round(scrollY)}px, absY=${absY}px`;
+      try {
+        navigator.clipboard.writeText(text);
+      } catch (err) {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      const copied = document.getElementById('wcci-copied');
+      if (copied) {
+        copied.style.opacity = '1';
+        setTimeout(() => { copied.style.opacity = '0'; }, 1800);
+      }
+    };
+
+    // Esc key to close
+    coordKeyHandler = (e) => {
+      if (e.key === 'Escape') stopCoordInspector();
+    };
+
+    // Close button
+    const closeBtn = coordInspectorEl.querySelector('.wcci-close');
+    if (closeBtn) closeBtn.addEventListener('click', stopCoordInspector);
+
+    document.addEventListener('mousemove', coordMouseHandler, true);
+    document.addEventListener('click', coordClickHandler, true);
+    document.addEventListener('keydown', coordKeyHandler, true);
+  }
+
+  function stopCoordInspector() {
+    if (coordInspectorEl) {
+      coordInspectorEl.remove();
+      coordInspectorEl = null;
+    }
+    if (coordMouseHandler) document.removeEventListener('mousemove', coordMouseHandler, true);
+    if (coordClickHandler) document.removeEventListener('click', coordClickHandler, true);
+    if (coordKeyHandler)   document.removeEventListener('keydown', coordKeyHandler, true);
+    coordMouseHandler = null;
+    coordClickHandler = null;
+    coordKeyHandler   = null;
   }
 
 })();

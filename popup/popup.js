@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnOpenRecent = document.getElementById('btn-open-recent');
   const speedBtns = document.querySelectorAll('.speed-btn');
   const checkShowGallery = document.getElementById('check-show-gallery');
+  const inputSliceHeight = document.getElementById('input-slice-height');
+  const inputXFrom = document.getElementById('input-x-from');
+  const inputXTo = document.getElementById('input-x-to');
+  const btnCoordInspector = document.getElementById('btn-coord-inspector');
 
   // Capture screen elements
   const captureScreen = document.getElementById('capture-screen');
@@ -20,10 +24,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   let showGalleryFirst = true;
   let captureTabId = null;
   let isCapturing = false;
+  let coordInspectorActive = false;
 
   // Load saved settings if present
   try {
-    const data = await chrome.storage.local.get(['scrollDelay', 'showGalleryFirst']);
+    const data = await chrome.storage.local.get(['scrollDelay', 'showGalleryFirst', 'sliceHeight', 'xFrom', 'xTo']);
     if (data && data.scrollDelay) {
       selectedDelay = data.scrollDelay;
       speedBtns.forEach(btn => {
@@ -43,7 +48,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       chrome.storage.local.set({ showGalleryFirst: true });
     }
+
+    // Restore advanced crop settings
+    if (data && data.sliceHeight) inputSliceHeight.value = data.sliceHeight;
+    if (data && data.xFrom !== undefined && data.xFrom !== null) inputXFrom.value = data.xFrom;
+    if (data && data.xTo) inputXTo.value = data.xTo;
   } catch (e) {}
+
+  // Persist advanced settings on change
+  inputSliceHeight.addEventListener('change', () => {
+    const val = parseInt(inputSliceHeight.value, 10);
+    chrome.storage.local.set({ sliceHeight: isNaN(val) ? null : val });
+  });
+  inputXFrom.addEventListener('change', () => {
+    const val = parseInt(inputXFrom.value, 10);
+    chrome.storage.local.set({ xFrom: isNaN(val) ? null : val });
+  });
+  inputXTo.addEventListener('change', () => {
+    const val = parseInt(inputXTo.value, 10);
+    chrome.storage.local.set({ xTo: isNaN(val) ? null : val });
+  });
+
+  // Coordinate Inspector toggle
+  btnCoordInspector.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) return;
+    if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://'))) {
+      alert('Không thể dùng tính năng này trên trang hệ thống của trình duyệt.');
+      return;
+    }
+    try {
+      await ensureContentScriptInjected(tab.id);
+      coordInspectorActive = !coordInspectorActive;
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'TOGGLE_COORD_INSPECTOR',
+        active: coordInspectorActive
+      });
+      if (coordInspectorActive) {
+        btnCoordInspector.classList.add('active');
+        btnCoordInspector.textContent = '🟡 Đang kiểm tra toạ độ — Click để tắt';
+        // close popup so user can hover on the page
+        window.close();
+      } else {
+        btnCoordInspector.classList.remove('active');
+        btnCoordInspector.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg> Bật kiểm tra toạ độ chuột trên trang`;
+      }
+    } catch (err) {
+      alert('Lỗi: ' + err.message);
+    }
+  });
 
   // Toggle show gallery setting
   if (checkShowGallery) {
@@ -116,9 +169,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       captureTabId = tab.id;
       showCaptureScreen('Đang chụp toàn bộ trang...');
 
+      const sliceH = parseInt(inputSliceHeight.value, 10);
+      const xFromV = parseInt(inputXFrom.value, 10);
+      const xToV = parseInt(inputXTo.value, 10);
+
       chrome.tabs.sendMessage(tab.id, {
         action: 'START_FULL_PAGE_CAPTURE',
-        scrollDelay: selectedDelay
+        scrollDelay: selectedDelay,
+        sliceHeight: isNaN(sliceH) ? null : sliceH,
+        xFrom: isNaN(xFromV) ? null : xFromV,
+        xTo: isNaN(xToV) ? null : xToV
       });
       // Do NOT close popup - keep it open to show progress
     } catch (err) {

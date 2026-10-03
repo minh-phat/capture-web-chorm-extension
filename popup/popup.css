@@ -9,7 +9,7 @@
 }
 
 body {
-  width: 320px;
+  width: 360px;
   background: #0f172a;
   color: #f8fafc;
   overflow: hidden;
@@ -534,3 +534,162 @@ input:checked + .slider:before {
   cursor: not-allowed;
   transform: none;
 }
+
+/* ===== Coordinate Inspector Button ===== */
+.coord-inspector-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  color: #fbbf24;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 10px;
+}
+
+.coord-inspector-btn:hover {
+  background: rgba(251, 191, 36, 0.16);
+  border-color: rgba(251, 191, 36, 0.5);
+  color: #fde68a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15);
+}
+
+.coord-inspector-btn.active {
+  background: rgba(251, 191, 36, 0.22);
+  border-color: #fbbf24;
+  color: #fde68a;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+}
+
+/* ===== Advanced Crop Settings ===== */
+.adv-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.adv-row:last-child {
+  margin-bottom: 0;
+}
+
+.adv-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.adv-label svg {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.adv-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 10px;
+  transition: border-color 0.2s ease;
+}
+
+.adv-input-wrap:focus-within {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);
+}
+
+.adv-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 0;
+}
+
+.adv-input::placeholder {
+  color: #475569;
+}
+
+/* Hide number input arrows */
+.adv-input::-webkit-inner-spin-button,
+.adv-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.adv-input[type=number] { -moz-appearance: textfield; }
+
+.adv-unit {
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.adv-hint {
+  font-size: 10px;
+  color: #334155;
+  font-style: italic;
+}
+
+/* X Range fields */
+.adv-range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.adv-range-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 8px;
+  transition: border-color 0.2s ease;
+}
+
+.adv-range-field:focus-within {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);
+}
+
+.adv-range-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.adv-range-input {
+  width: 0;
+  flex: 1;
+}
+
+.adv-range-sep {
+  font-size: 14px;
+  color: #334155;
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
